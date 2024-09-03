@@ -8,8 +8,10 @@ function buildMetadata(sample) {
 
     // Filter the metadata for the object with the desired sample number
     const filteredMetadata = metadata.filter(function (object) {
-      return object.id === sample;
+      return object.id === parseInt(sample);
     });
+
+    // console.log(filteredMetadata);
 
     // Use d3 to select the panel with id of `#sample-metadata`
     let panel = d3.select("#sample-metadata");
@@ -19,8 +21,8 @@ function buildMetadata(sample) {
 
     // Inside a loop, you will need to use d3 to append new
     // tags for each key-value in the filtered metadata.
-    filteredMetadata.forEach(function (item) {
-      panel.append("p").text(`${item.key}: ${item.value}`);
+    Object.entries(filteredMetadata[0]).forEach(([key, value]) => {
+      panel.append("p").text(`${key}: ${value}`);
     });
   });
 }
@@ -32,76 +34,76 @@ function buildCharts(sample) {
   ).then(data => {
     // Get the samples field
     let samples = data.samples;
+    // console.log(samples);
 
     // Filter the samples for the object with the desired sample number
     const filteredSamples = samples.filter(function (object) {
       return object.id === sample;
     });
 
+    // console.log(filteredSamples);
+
+    let otu_ids = [];
+    let otu_labels = [];
+    let sample_values = [];
+
     // Get the otu_ids, otu_labels, and sample_values
-    let otu_ids = filteredSamples.otu_ids;
-    let otu_labels = filteredSamples.otu_labels;
-    let sample_values = filteredSamples.sample_values;
+    if (filteredSamples.length > 0) {
+      otu_ids = filteredSamples[0].otu_ids;
+      otu_labels = filteredSamples[0].otu_labels;
+      sample_values = filteredSamples[0].sample_values;
+    } else {
+      console.error("No samples found with ID");
+    }
 
     // Build a Bubble Chart
-    const svg = d3
-      .select("#bubble")
-      .append("svg")
-      .attr("width", 800)
-      .attr("height", 400);
+    const bubbleTrace = {
+      x: otu_ids,
+      y: sample_values,
+      mode: "markers",
+      marker: {
+        size: sample_values,
+        color: otu_ids,
+        colorscale: "Earth"
+      },
+      text: otu_labels
+    };
 
-    //marker colors
-    var color = d3
-      .scaleThreshold()
-      .domain(otu_ids)
-      .range(["red", "yellow", "green", "blue"]);
-
-    svg
-      .selectAll("circle")
-      .data(otu_ids)
-      .enter()
-      .append("circle")
-      // Use the otu_ids for the x values.
-      .attr("cx", (d, i) => d)
-      // Use the sample_values for the y values.
-      .attr("cy", (d, i) => sample_values[i])
-      // Use the sample_values for the marker size.
-      .attr("radius", (d, i) => sample_values[i])
-      // Use the otu_ids for the marker colors.
-      .attr("fill", d => color[d]);
-
-    svg
-      .selectAll("text")
-      .data(otu_labels)
-      .enter()
-      .append("text")
-      .attr("x", (d, i) => otu_ids[i]) // Position text based on x-coordinate of circles
-      .attr("y", (d, i) => sample_values[i]) // Position text based on y-coordinate of circles
-      .text(d => d); // Set the text content to the otu_labels
+    const bubbleData = [bubbleTrace];
+    const bubbleLayout = {
+      title: "Bacteria Cultures Per Sample",
+      xaxis: { title: "OTU ID" },
+      yaxis: { title: "Number of Bacteria" }
+    };
 
     // Render the Bubble Chart
+    Plotly.newPlot("bubble", bubbleData, bubbleLayout);
 
     // For the Bar Chart, map the otu_ids to a list of strings for your yticks
+    let yticks = otu_ids
+      .slice(0, 10)
+      .map(otu_id => `OTU ${otu_id}`)
+      .reverse();
+    let xticks = sample_values.slice(0, 10).reverse();
+
     // Build a Bar Chart
-    const svg_bar = d3
-      .select("#bar")
-      .append("svg")
-      .attr("width", 800)
-      .attr("height", 400);
-
     // Don't forget to slice and reverse the input data appropriately
-    let topVal = sample_values.slice(0, 10).reverse();
-    let yticks = otu_ids.map(function (id) {
-      return "OTU " + id;
-    });
+    const barTrace = {
+      x: xticks,
+      y: yticks,
+      type: "bar",
+      orientation: "h"
+    };
 
-    //Bars
-    svg_bar.selectAll("rect").data(topVal).enter().append("rect");
-
-    //Labels
-    svg_bar.selectAll("text").data(yticks).enter().append("text");
+    const barData = [barTrace];
+    const barLayout = {
+      title: "Top 10 OTUs Found",
+      xaxis: { title: "Sample Values" },
+      yaxis: { title: "OTU ID", tickvals: yticks }
+    };
 
     // Render the Bar Chart
+    Plotly.newPlot("bar", barData, barLayout);
   });
 }
 
@@ -119,15 +121,23 @@ function init() {
     // Use the list of sample names to populate the select options
     // Hint: Inside a loop, you will need to use d3 to append a new
     // option for each sample name.
+    for (let i = 0; i < names.length; i++) {
+      dropdownmenu.append("option").text(names[i]).attr("value", names[i]);
+    }
+
     // Get the first sample from the list
+    let firstSample = names[0];
     // Build charts and metadata panel with the first sample
-    buildCharts(data);
+    buildCharts(firstSample);
+    buildMetadata(firstSample);
   });
 }
 
 // Function for event listener
 function optionChanged(newSample) {
   // Build charts and metadata panel each time a new sample is selected
+  buildCharts(newSample);
+  buildMetadata(newSample);
 }
 
 // Initialize the dashboard
