@@ -92,8 +92,8 @@ function buildCharts(sample) {
 
     const barData = [barTrace];
     const barLayout = {
-      title: "Top 10 OTUs Found",
-      xaxis: { title: "Sample Values" },
+      title: "Top 10 Bacteria Cultures Found",
+      xaxis: { title: "Number of Bacteria" },
       yaxis: { title: "OTU ID", tickvals: yticks }
     };
 
